@@ -141,12 +141,12 @@ U, a = generate_solved_instance(10, 12)
 # Evaluate a polynomial in exponent
 def evaluate_in_exponent(powers_of_tau, poly):
     # powers_of_tau:
-    #    [G*0, G*tau, ...., G*(tau**m)]
+    #    [G*1, G*tau, ...., G*(tau**m)]
     # poly:
     #    degree-m bound polynomial in coefficient form
     print('P.degree:', poly.degree())
     print('taus:', len(powers_of_tau))
-    assert poly.degree()+1 < len(powers_of_tau)
+    assert poly.degree()+1 <= len(powers_of_tau)
     return sum([powers_of_tau[i] * poly.coefficients[i] for i in
                 range(poly.degree()+1)], G*0)
 
