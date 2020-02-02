@@ -81,11 +81,9 @@ def groth16_setup(U, V, W, n_stmt):
     for (i,k), y in U.items():
         x = ROOTS[i]
         us[k] += PolyEvalRep([x],[y])
-
     for (i,k), y in V.items():
         x = ROOTS[i]
         vs[k] += PolyEvalRep([x],[y])
-
     for (i,k), y in W.items():
         x = ROOTS[i]
         ws[k] += PolyEvalRep([x],[y])
@@ -98,36 +96,18 @@ def groth16_setup(U, V, W, n_stmt):
     gamma = random_fp()
     delta = random_fp()
     tau   = random_fp()
-    print('tau', tau)
 
     t = vanishing_poly(omega, m)
-    print('vanishing poly t:', t)
+
     # CRS elements
     CRS = [G * alpha, G * beta, G * gamma, G * delta] + \
           [G * (tau ** i) for i in range(m)] + \
           [G * ((beta * us[i](tau) + alpha * vs[i](tau) + ws[i](tau))/gamma) for i in range(n_stmt)] + \
           [G * ((beta * us[i](tau) + alpha * vs[i](tau) + ws[i](tau))/delta) for i in range(n_stmt,n)] + \
-          [G * (tau ** i * t(tau)) for i in range(m-1)]
+          [G * (tau ** i * t(tau)/delta) for i in range(m-1)]
 
-    SRS = [alpha, beta, gamma, delta] + \
-          [(tau ** i) for i in range(m)] + \
-          [((beta * us[i](tau) + alpha * vs[i](tau) + ws[i](tau))/gamma) for i in range(n_stmt)] + \
-          [((beta * us[i](tau) + alpha * vs[i](tau) + ws[i](tau))/delta) for i in range(n_stmt,n)] + \
-          [(tau ** i * t(tau)/delta) for i in range(m-1)]
-
-    return SRS
+    return CRS
     # return CRS
-
-def evaluate_in_exponent_demo(powers_of_tau, poly):
-    # powers_of_tau:
-    #    [G*1, G*tau, ...., G*(tau**m)]
-    # poly:
-    #    degree-m bound polynomial in coefficient form
-    print('P.degree:', poly.degree())
-    print('taus:', len(powers_of_tau))
-    assert poly.degree()+1 <= len(powers_of_tau)
-    return sum([powers_of_tau[i] * poly.coefficients[i] for i in
-                range(poly.degree()+1)],52435875175126190479447740508185965837690552500527637822603658699938581184513)
 
 # Prover
 def groth16_prover(U, V, W, CRS, n_stmt,  a):
@@ -187,31 +167,18 @@ def groth16_prover(U, V, W, CRS, n_stmt,  a):
 
 
     # 2. Compute the A, B term
-    # r = random_fp()
-    # s = random_fp()
-    aa = evaluate_in_exponent_demo(Taus, ux.to_coeffs()) 
-    bb = ux(tau)
-    print("aa_________bb")
-    assert aa==bb
-    assert Alpha==alpha
-    A = Alpha + evaluate_in_exponent_demo(Taus, ux.to_coeffs()) 
-    B = Beta + evaluate_in_exponent_demo(Taus, vx.to_coeffs())
-    # A = Alpha + evaluate_in_exponent(Taus, ux.to_coeffs()) 
-    # B = Beta + evaluate_in_exponent(Taus, vx.to_coeffs())
+    r = random_fp()
+    s = random_fp()
+
     # A = Alpha + evaluate_in_exponent(Taus, ux.to_coeffs()) + (Delta * r)
     # B = Beta + evaluate_in_exponent(Taus, vx.to_coeffs()) + (Delta * s)
 
+    A = Alpha + evaluate_in_exponent(Taus, ux.to_coeffs())
+    B = Beta + evaluate_in_exponent(Taus, vx.to_coeffs())
+
     # 3. Compute the C terms
-    # C = sum([UVWs[k-n_stmt] * a[k] for k in range(n_stmt, n)], G*0) + \
-    #     evaluate_in_exponent(tTaus, h)
-    assert Delta==delta
-    print(h(tau))
-    print(t(tau))
-    print(tau ** 16 + 52435875175126190479447740508185965837690552500527637822603658699938581184512)
-    assert (tau ** 16 + 52435875175126190479447740508185965837690552500527637822603658699938581184512)==t(tau)
-    assert (h(tau) * t(tau)/Delta) == evaluate_in_exponent_demo(tTaus, h)
-    C = sum([UVWs[k-n_stmt] * a[k] for k in range(n_stmt, n)], 52435875175126190479447740508185965837690552500527637822603658699938581184513) + \
-        evaluate_in_exponent_demo(tTaus, h)
+    C = sum([UVWs[k-n_stmt] * a[k] for k in range(n_stmt, n)], G*0) + \
+        evaluate_in_exponent(tTaus, h)
 
     return A, B, C
 
@@ -228,19 +195,12 @@ def groth16_verifier(U, V, W, CRS, a_stmt, Pi):
     Stmt = CRS[m+4: m+4+n_stmt]
 
     # Compute D
-    # D = sum([Stmt[k] * a_stmt[k] for k in range(n_stmt)], G * 0)
-    D = sum([Stmt[k] * a_stmt[k] for k in range(n_stmt)], 52435875175126190479447740508185965837690552500527637822603658699938581184513)
+    D = sum([Stmt[k] * a_stmt[k] for k in range(n_stmt)], G * 0)
 
     # Check 1
     print('Checking (1)')
-    # print(A.pair(B))
-    # print(Alpha.pair(Beta) * D.pair(Gamma) * C.pair(Delta))
 
-    # assert A.pair(B) == Alpha.pair(Beta) * D.pair(Gamma) * C.pair(Delta) 
-    print(A * B)
-    print(Alpha * Beta + D * Gamma + C * Delta)
-    print('Check')
-    assert A * B == Alpha * Beta + D * Gamma + C * Delta 
+    assert A.pair(B) == Alpha.pair(Beta) * D.pair(Gamma) * C.pair(Delta) 
 
     return True
 
